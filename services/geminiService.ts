@@ -5,7 +5,6 @@ import { RoastSettings, GeneratedRoast } from "../types";
 export const generateRoast = async (settings: RoastSettings): Promise<GeneratedRoast> => {
   const { targetName, context, savageLevel, wittyLevel, absurdityLevel, style, focus, image } = settings;
   
-  // Use a fresh instance with the system-provided API key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // 1. Generate the Roast Text
@@ -23,11 +22,11 @@ export const generateRoast = async (settings: RoastSettings): Promise<GeneratedR
     ${image ? 'Analyze the provided photo. Incorporate specific visual details (clothes, expression, hair) into the roast.' : ''}
 
     Guidelines:
-    - High Savage: Be brutal. Low Savage: Be playful teasing.
-    - High Witty: Use complex metaphors and academic burns.
-    - High Absurdity: Use weird, nonsensical comparisons.
-    - ABSOLUTELY NO HATE SPEECH, SLURS, OR DISCRIMINATION.
-    - The output must be in JSON format.
+    - High Savage: Be brutal and soul-crushing.
+    - High Witty: Use complex metaphors, sharp wordplay, and devastating logic.
+    - High Absurdity: Use surreal, nonsensical, and bizarre comparisons.
+    - NO HATE SPEECH OR DISCRIMINATION.
+    - The output MUST be valid JSON.
   `;
 
   const textParts: any[] = [{ text: textPrompt }];
@@ -51,36 +50,29 @@ export const generateRoast = async (settings: RoastSettings): Promise<GeneratedR
           roastText: { type: Type.STRING },
           wit: { type: Type.NUMBER },
           heat: { type: Type.NUMBER },
-          originality: { type: Type.NUMBER }
+          chaos: { type: Type.NUMBER }
         },
-        required: ["roastText", "wit", "heat", "originality"]
+        required: ["roastText", "wit", "heat", "chaos"]
       }
     }
   });
 
-  const data = JSON.parse(textResponse.text || '{}');
+  const rawText = textResponse.text || '{}';
+  const data = JSON.parse(rawText);
   let caricatureUrl: string | undefined = undefined;
 
-  // 2. Generate Caricature using gemini-2.5-flash-image
+  // 2. Generate Caricature
   if (image) {
     try {
-      // DYNAMIC BRUTALITY: Adjust prompt intensity based on savageLevel slider
-      const isExtreme = savageLevel > 70;
-      const intensityAdjective = isExtreme ? "VILE, GROTESQUE, and UTTERLY UNFORGIVING" : "RUTHLESS and HIGHLY EXAGGERATED";
+      const isExtreme = savageLevel > 75;
+      const isChaos = absurdityLevel > 75;
+      const mood = isExtreme ? "GRIM and AGGRESSIVE" : isChaos ? "SURREAL and PSYCHEDELIC" : "SATIRICAL and FUNNY";
       
       const imagePrompt = `
-        Create a ${intensityAdjective} digital caricature of the person in the provided photo.
-        
-        STYLE: Gritty, high-detail editorial satire. Think political cartoonists who hate their subjects. Harsh lighting, deep shadows, and exaggerated textures.
-        
-        INSTRUCTIONS:
-        1. IDENTIFY WEAKNESSES: Locate the subject's most awkward physical traits (forehead, nose, chin, posture, hairline, teeth).
-        2. EXAGGERATE TO OBLIVION: ${isExtreme ? 'Rippling, grotesque anatomical distortions.' : 'Bold, satirical exaggerations.'} If they have a forehead, make it a five-head. If they have a chin, make it a mountain or a pebble.
-        3. CAPTURE THE SOUL: Focus on an expression of utter incompetence, arrogance, or confusion. 
-        4. ARTISTIC DIRECTION: This is a BRUTAL ROAST. Do not make them look attractive. Highlight every wrinkle, blemish, and stray hair. 
-        5. The final image must be recognizable but should make the subject question their life choices.
-        
-        THIS IS NOT A FRIENDLY CARTOON. THIS IS A VISUAL EXECUTION.
+        Create a ${mood} digital caricature illustration based on the person in this photo.
+        Focus specifically on: ${focus}.
+        STYLE: Satirical editorial illustration. Exaggerate physical features massively. 
+        Dark sharp lines, gritty textures for savage, neon weirdness for chaos.
       `;
 
       const imageResponse = await ai.models.generateContent({
@@ -100,27 +92,27 @@ export const generateRoast = async (settings: RoastSettings): Promise<GeneratedR
         },
       });
 
-      for (const part of imageResponse.candidates?.[0]?.content.parts || []) {
-        if (part.inlineData) {
-          caricatureUrl = `data:image/png;base64,${part.inlineData.data}`;
-          break;
+      if (imageResponse.candidates?.[0]?.content?.parts) {
+        const imgPart = imageResponse.candidates[0].content.parts.find(p => !!p.inlineData);
+        if (imgPart?.inlineData) {
+          caricatureUrl = `data:image/png;base64,${imgPart.inlineData.data}`;
         }
       }
     } catch (e) {
-      console.error("Caricature generation failed:", e);
+      console.error("Visual distortion failed:", e);
     }
   }
 
   return {
-    id: Math.random().toString(36).substr(2, 9),
-    text: data.roastText || "You're so boring the AI forgot how to roast you.",
+    id: Math.random().toString(36).substr(2, 6).toUpperCase(),
+    text: data.roastText || "The AI refused to burn someone this boring.",
     timestamp: Date.now(),
     settings,
     caricatureUrl,
     stats: {
-      wit: data.wit || Math.floor(Math.random() * 100),
-      heat: data.heat || Math.floor(Math.random() * 100),
-      originality: data.originality || Math.floor(Math.random() * 100)
+      wit: data.wit || wittyLevel,
+      heat: data.heat || savageLevel,
+      chaos: data.chaos || absurdityLevel
     }
   };
 };

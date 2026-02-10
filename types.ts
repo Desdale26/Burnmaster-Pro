@@ -37,6 +37,6 @@ export interface GeneratedRoast {
   stats: {
     wit: number;
     heat: number;
-    originality: number;
+    chaos: number;
   };
 }

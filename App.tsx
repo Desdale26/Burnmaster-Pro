@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { RoastSettings, RoastStyle, RoastFocus, GeneratedRoast } from './types';
 import { generateRoast } from './services/geminiService';
 import Slider from './components/Slider';
@@ -21,6 +21,14 @@ const App: React.FC = () => {
   const [currentRoast, setCurrentRoast] = useState<GeneratedRoast | null>(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<GeneratedRoast[]>([]);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // Projected Analytics reflect sliders in real-time
+  const previewStats = useMemo(() => ({
+    heat: settings.savageLevel,
+    wit: settings.wittyLevel,
+    chaos: settings.absurdityLevel
+  }), [settings.savageLevel, settings.wittyLevel, settings.absurdityLevel]);
 
   const handleGenerate = async () => {
     if (!settings.targetName.trim()) {
@@ -29,13 +37,20 @@ const App: React.FC = () => {
     }
 
     setLoading(true);
+    setCurrentRoast(null);
+    
     try {
       const roast = await generateRoast(settings);
-      setCurrentRoast(roast);
       setHistory(prev => [roast, ...prev].slice(0, 10));
+      setCurrentRoast(roast);
+      
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+
     } catch (error: any) {
       console.error("Roast failed:", error);
-      alert("The roast was too hot even for the AI. Try again.");
+      alert("System meltdown. Try again.");
     } finally {
       setLoading(false);
     }
@@ -43,52 +58,105 @@ const App: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    alert("Burn exported.");
   };
 
-  const isExtreme = settings.savageLevel > 75;
+  // Screen Twist Calculation (Tie-Dye effect from the CENTER)
+  // Only starts twisting when absurdityLevel > 30%
+  const adjustedChaos = Math.max(0, settings.absurdityLevel - 30);
+  const chaosFactor = adjustedChaos / 70; // Normalized from 0 to 1 after 30%
+  const twistRotation = chaosFactor * 12; // Max 12 degrees rotation for intensity
+
+  // Heat & Intellect Effects
+  const savageEffect = settings.savageLevel / 100;
+  const witEffect = settings.wittyLevel / 100;
+
+  // Visual filter values
+  const saturationBoost = savageEffect * 40; // Savage makes things more "intense/bloody"
+  const brightnessBoost = witEffect * 15;   // Wit makes things "clearer/brighter"
+  const hueShift = chaosFactor * 10;        // Chaos warps the colors
 
   return (
-    <div className={`min-h-screen pb-12 transition-colors duration-700 ${isExtreme ? 'bg-[#0f0202]' : 'bg-[#050505]'} text-white selection:bg-orange-500/30`}>
-      {/* Header */}
-      <header className="pt-10 pb-6 px-4 text-center sticky top-0 bg-inherit/90 backdrop-blur-md z-50 border-b border-white/5">
-        <h1 className={`text-5xl md:text-7xl font-bangers text-transparent bg-clip-text bg-gradient-to-b ${isExtreme ? 'from-red-400 via-red-600 to-black' : 'from-yellow-300 via-orange-500 to-red-600'} drop-shadow-[0_0_15px_rgba(234,88,12,0.3)]`}>
-          {isExtreme ? 'OBLITERATION MODE' : 'BURNMASTER PRO'}
+    <div 
+      className="min-h-screen pb-48 transition-all duration-1000 bg-[#050505] text-white selection:bg-orange-600/50 overflow-x-hidden relative flex flex-col items-center"
+      style={{
+        filter: `saturate(${100 + saturationBoost}%) brightness(${100 + brightnessBoost}%) hue-rotate(${hueShift}deg)`
+      }}
+    >
+      
+      {/* Dynamic Background Overlays (Centered) */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
+        {/* Heat (Red Glow) */}
+        <div 
+          className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(220,38,38,0.12),transparent)] transition-opacity duration-700"
+          style={{ opacity: savageEffect }}
+        ></div>
+        {/* Intellect (Blue Glow) */}
+        <div 
+          className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(59,130,246,0.12),transparent)] transition-opacity duration-700"
+          style={{ opacity: witEffect }}
+        ></div>
+        
+        {/* Tie-Dye Chaos Twists */}
+        <div 
+          className="absolute w-[200%] aspect-square bg-[radial-gradient(circle_at_center,rgba(255,0,255,0.04),transparent_40%)] transition-transform duration-1000 ease-out"
+          style={{ transform: `rotate(${twistRotation * 2.5}deg)` }}
+        ></div>
+        <div 
+          className="absolute w-[200%] aspect-square bg-[radial-gradient(circle_at_center,rgba(0,255,255,0.02),transparent_60%)] transition-transform duration-1000 ease-out delay-100"
+          style={{ transform: `rotate(${-twistRotation * 4}deg)` }}
+        ></div>
+        <div 
+          className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.03),transparent_70%)]"
+        ></div>
+      </div>
+
+      <header className="w-full pt-20 pb-12 px-4 text-center sticky top-0 bg-[#050505]/80 backdrop-blur-3xl z-50 border-b border-white/5">
+        <h1 className="text-5xl md:text-7xl font-bangers transition-all duration-700 text-transparent bg-clip-text bg-gradient-to-b from-orange-400 to-red-600 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+          BURNMASTER PRO
         </h1>
-        <p className={`mt-2 font-bold tracking-[0.3em] uppercase text-[10px] ${isExtreme ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}>
-          {isExtreme ? 'WARNING: EMOTIONAL DAMAGE IMMINENT' : 'Personalized Insult Laboratory'}
+        <p className="mt-3 font-bold tracking-[0.6em] uppercase text-[9px] text-orange-500/40">
+          Personalized Insult Laboratory // Global Damage Engine
         </p>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+      {/* Main Body - This container twists from the CENTER based on Chaos */}
+      <main 
+        className="max-w-7xl w-full px-16 grid grid-cols-1 lg:grid-cols-2 gap-20 mt-16 relative z-10 transition-transform duration-1000 ease-out"
+        style={{ 
+          transform: `rotate(${twistRotation}deg)`,
+          transformOrigin: 'center center'
+        }}
+      >
         
-        {/* Left: Controls */}
-        <section className={`glass-panel p-8 rounded-3xl space-y-8 h-fit border-t-4 transition-all duration-500 ${isExtreme ? 'border-t-red-600 shadow-[0_0_30px_rgba(220,38,38,0.2)]' : 'border-t-orange-500'}`}>
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span className={isExtreme ? "text-red-500" : "text-orange-500"}>01.</span> Identity
-              </h2>
-              <div className="flex gap-4">
+        {/* Left: Input Lab */}
+        <section className="glass-panel p-10 rounded-[3rem] space-y-10 h-fit border-t-4 border-t-orange-600 transition-all duration-700 shadow-2xl shadow-black relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.02] pointer-events-none rotate-12">
+            <svg className="w-64 h-64" viewBox="0 0 100 100" fill="currentColor"><path d="M50 0L100 50L50 100L0 50Z"/></svg>
+          </div>
+
+          <div className="space-y-10 relative z-10">
+            <div className="space-y-5">
+              <h2 className="text-xl font-bangers tracking-[0.2em] text-orange-500/80">TARGET IDENTITY</h2>
+              <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="Who are we roasting?"
-                  className="flex-1 bg-black/50 border border-white/10 p-4 rounded-xl focus:outline-none focus:border-orange-500 transition-all text-xl placeholder:text-gray-700"
+                  placeholder="Subject Name..."
+                  className="w-full bg-black/60 border border-white/5 p-5 rounded-2xl focus:outline-none focus:border-orange-500/30 transition-all text-xl font-bold placeholder:text-gray-800"
                   value={settings.targetName}
                   onChange={(e) => setSettings({ ...settings, targetName: e.target.value })}
                 />
+                <textarea
+                  placeholder="Describe their failure..."
+                  className="w-full bg-black/60 border border-white/5 p-5 rounded-2xl focus:outline-none focus:border-orange-500/30 transition-all min-h-[100px] text-xs leading-relaxed"
+                  value={settings.context}
+                  onChange={(e) => setSettings({ ...settings, context: e.target.value })}
+                />
               </div>
-              <textarea
-                placeholder="What's their deal? (e.g. 'Always late', 'Wears socks with sandals')"
-                className="w-full bg-black/50 border border-white/10 p-4 rounded-xl focus:outline-none focus:border-orange-500 transition-all min-h-[80px] text-sm"
-                value={settings.context}
-                onChange={(e) => setSettings({ ...settings, context: e.target.value })}
-              />
             </div>
 
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span className={isExtreme ? "text-red-500" : "text-orange-500"}>02.</span> Appearance Analysis
-              </h2>
+            <div className="space-y-5">
+              <h2 className="text-xl font-bangers tracking-[0.2em] text-orange-500/80">VISUAL SCAN</h2>
               <CameraCapture 
                 currentImage={settings.image}
                 onCapture={(data) => setSettings({ ...settings, image: data, focus: RoastFocus.LOOKS })}
@@ -96,51 +164,34 @@ const App: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span className={isExtreme ? "text-red-500" : "text-orange-500"}>03.</span> Roast Configuration
-              </h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Tone Style</label>
-                  <select
-                    className="w-full bg-black/50 border border-white/10 p-3 rounded-xl focus:outline-none text-xs"
-                    value={settings.style}
-                    onChange={(e) => setSettings({ ...settings, style: e.target.value as RoastStyle })}
-                  >
-                    {Object.values(RoastStyle).map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Burn Area</label>
-                  <select
-                    className="w-full bg-black/50 border border-white/10 p-3 rounded-xl focus:outline-none text-xs"
-                    value={settings.focus}
-                    onChange={(e) => setSettings({ ...settings, focus: e.target.value as RoastFocus })}
-                  >
-                    {Object.values(RoastFocus).map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
+            <div className="space-y-10">
+              <h2 className="text-xl font-bangers tracking-[0.2em] text-orange-500/80">PROJECTED ANALYTICS</h2>
+              <div className="bg-black/60 rounded-[2.5rem] p-8 border border-white/10 flex flex-col items-center shadow-inner">
+                <BurnMeter stats={previewStats} />
+                <div className="flex justify-between w-full mt-4 px-4 text-[9px] font-black uppercase tracking-widest text-gray-700">
+                  <span>HEAT: {settings.savageLevel}%</span>
+                  <span>WIT: {settings.wittyLevel}%</span>
+                  <span>CHAOS: {settings.absurdityLevel}%</span>
                 </div>
               </div>
               
-              <div className="space-y-6 bg-white/5 p-6 rounded-2xl border border-white/5">
+              <div className="space-y-10 bg-black/30 p-10 rounded-[2.5rem] border border-white/5 shadow-inner">
                 <Slider
-                  label="Heat (Savage Level)"
+                  label="HEAT LEVEL"
                   min={0}
                   max={100}
                   value={settings.savageLevel}
                   onChange={(val) => setSettings({ ...settings, savageLevel: val })}
                 />
                 <Slider
-                  label="Wit (IQ Level)"
+                  label="INTELLECT"
                   min={0}
                   max={100}
                   value={settings.wittyLevel}
                   onChange={(val) => setSettings({ ...settings, wittyLevel: val })}
                 />
                 <Slider
-                  label="Chaos (Absurdity)"
+                  label="CHAOS"
                   min={0}
                   max={100}
                   value={settings.absurdityLevel}
@@ -153,78 +204,70 @@ const App: React.FC = () => {
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className={`w-full py-5 rounded-2xl text-2xl font-bangers tracking-widest transition-all ${
+            className={`w-full py-7 rounded-[2rem] text-3xl font-bangers tracking-[0.2em] transition-all duration-500 transform hover:-translate-y-2 active:scale-95 shadow-2xl ${
               loading 
-              ? 'bg-gray-800 cursor-not-allowed text-gray-500' 
-              : isExtreme 
-                ? 'bg-red-700 hover:bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]'
-                : 'bg-orange-600 hover:bg-orange-500 shadow-[0_0_20px_rgba(234,88,12,0.4)]'
+              ? 'bg-gray-800 cursor-wait opacity-50' 
+              : 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/30'
             }`}
           >
-            {loading ? 'CALIBRATING VIOLENCE...' : isExtreme ? 'OBLITERATE THEM' : 'GENERATE PERSONALIZED BURN'}
+            {loading ? 'FUSING ATOMS...' : 'INITIATE BURN'}
           </button>
         </section>
 
-        {/* Right: Results */}
-        <section className="flex flex-col gap-6">
+        {/* Right: Result Zone */}
+        <section className="flex flex-col gap-10 min-h-[700px]" ref={resultRef}>
           {currentRoast ? (
-            <div className={`glass-panel p-8 rounded-3xl relative overflow-hidden transition-all duration-500 ${isExtreme ? 'border-red-500/40' : 'border-orange-500/20'}`}>
-              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent ${isExtreme ? 'via-red-600' : 'via-orange-500'} to-transparent opacity-30`}></div>
+            <div key={currentRoast.id} className="glass-panel p-12 rounded-[4rem] relative overflow-hidden transition-all duration-1000 animate-[burnIn_0.8s_cubic-bezier(0.22,1,0.36,1)] border-white/10 shadow-3xl">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-600 to-transparent opacity-60"></div>
               
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className={`text-[10px] font-bold uppercase tracking-[0.3em] ${isExtreme ? 'text-red-500' : 'text-orange-500'}`}>
-                    {isExtreme ? 'SURGICAL STRIKE COMPLETE' : 'Freshly Cooked'}
+              <div className="flex justify-between items-start mb-12">
+                <div className="space-y-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-orange-500">
+                    BURN ANALYSIS COMPLETE
                   </h3>
-                  <p className="text-gray-600 text-[10px] uppercase font-mono">{new Date(currentRoast.timestamp).toLocaleTimeString()}</p>
-                </div>
-                <div className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${isExtreme ? 'bg-red-600/10 text-red-500 border-red-500/20' : 'bg-orange-600/10 text-orange-500 border-orange-500/20'}`}>
-                  {isExtreme ? 'MAXIMUM SAVAGERY' : 'Custom Roast Ready'}
+                  <p className="text-gray-700 text-[8px] font-mono tracking-tighter uppercase opacity-50">
+                    {new Date(currentRoast.timestamp).toLocaleString()} // SCAN: {currentRoast.id}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-8 relative z-10">
+              <div className="space-y-16">
                 {currentRoast.caricatureUrl && (
-                  <div className="relative group">
-                    <div className={`absolute -inset-1 bg-gradient-to-r ${isExtreme ? 'from-red-600 to-black' : 'from-orange-600 to-red-600'} rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000`}></div>
+                  <div className="relative group max-w-xs mx-auto">
                     <img 
                       src={currentRoast.caricatureUrl} 
-                      alt="Personalized Caricature" 
-                      className="relative rounded-2xl w-full h-auto aspect-square object-cover border border-white/10 shadow-2xl"
+                      alt="Caricature" 
+                      className="relative rounded-[2.5rem] w-full aspect-square object-cover border border-white/5 shadow-2xl hover:scale-[1.02] transition-transform duration-500"
                     />
-                    {isExtreme && (
-                      <div className="absolute top-4 left-4 bg-red-600 text-white px-2 py-1 text-[8px] font-bold rounded uppercase tracking-widest animate-pulse">
-                        Grotesque Mode Active
-                      </div>
-                    )}
                   </div>
                 )}
 
-                <blockquote className={`text-2xl md:text-3xl font-bangers tracking-wide leading-snug text-white animate-flame drop-shadow-md ${isExtreme ? 'text-red-50' : ''}`}>
-                  "{currentRoast.text}"
-                </blockquote>
+                <div className="relative py-12 text-center">
+                   <blockquote className="relative text-3xl md:text-5xl font-bangers tracking-tight leading-[1.1] text-white drop-shadow-2xl">
+                    "{currentRoast.text}"
+                  </blockquote>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center bg-white/5 p-6 rounded-2xl border border-white/5">
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-4 text-center tracking-widest">Burn Dynamics</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-black/60 p-10 rounded-[3.5rem] border border-white/10 shadow-inner">
+                  <div className="space-y-6 text-center">
+                    <h4 className="text-[9px] font-black uppercase text-gray-500 tracking-[0.5em]">ACTUAL IMPACT</h4>
                     <BurnMeter stats={currentRoast.stats} />
                   </div>
-                  <div className="flex flex-col gap-3">
+                  
+                  <div className="flex flex-col gap-5">
                     <button 
                       onClick={() => copyToClipboard(currentRoast.text)}
-                      className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-all text-xs font-bold uppercase"
+                      className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 p-6 rounded-2xl transition-all border border-white/5 group"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                      Copy Insult
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">COPY BURN</span>
                     </button>
                     {currentRoast.caricatureUrl && (
                       <a 
                         href={currentRoast.caricatureUrl} 
                         download={`burn_${currentRoast.id}.png`}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-xl transition-all text-xs font-bold uppercase border ${isExtreme ? 'bg-red-600/10 text-red-400 border-red-500/20 hover:bg-red-600/20' : 'bg-orange-600/10 text-orange-400 border-orange-500/20 hover:bg-orange-600/20'}`}
+                        className="w-full flex items-center justify-center gap-3 p-6 rounded-2xl transition-all border border-white/5 bg-white/5 hover:bg-white/10 group"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        Save Caricature
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">EXTRACT PHOTO</span>
                       </a>
                     )}
                   </div>
@@ -232,34 +275,38 @@ const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className={`glass-panel p-12 rounded-3xl flex flex-col items-center justify-center text-center space-y-4 h-full border-dashed border-white/5 min-h-[400px] transition-all duration-700 ${isExtreme ? 'bg-red-950/5' : ''}`}>
-              <div className={`w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4 ${isExtreme ? 'animate-pulse' : ''}`}>
-                <svg className={`w-10 h-10 ${isExtreme ? 'text-red-900' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.5-7 3 3 5.5 6 5.5 11.5z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14.5a3 3 0 013 3"></path></svg>
+            <div className={`glass-panel flex-1 rounded-[4rem] flex flex-col items-center justify-center text-center p-16 border-dashed border-white/5 transition-all duration-1000 ${loading ? 'opacity-10 blur-2xl' : 'opacity-100'}`}>
+              <div className="relative mb-12">
+                <div className="w-40 h-40 rounded-full bg-white/5 flex items-center justify-center border border-white/5 relative">
+                  <svg className={`w-16 h-16 text-orange-500 transition-all duration-700 ${loading ? 'animate-spin opacity-100' : 'opacity-20'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                  </svg>
+                  <div className={`absolute inset-0 rounded-full border border-orange-500/20 ${loading ? 'animate-ping' : ''}`}></div>
+                </div>
               </div>
-              <h3 className={`text-xl font-bold italic ${isExtreme ? 'text-red-900' : 'text-gray-600'}`}>
-                {isExtreme ? 'PROTOCOL: EXTERMINATE' : 'Laboratory Idle'}
-              </h3>
-              <p className="text-gray-700 max-w-xs mx-auto text-xs uppercase tracking-widest leading-loose">
-                {isExtreme ? 'CRANK THE HEAT TO 100 IF YOU DARE' : 'Configure your target above and initiate the burn protocol.'}
+              <h3 className="text-2xl font-bangers tracking-[0.3em] text-gray-800 uppercase mb-4">SYSTEM IDLE</h3>
+              <p className="text-gray-800 max-w-xs text-[10px] uppercase tracking-[0.3em] font-black leading-relaxed opacity-40">
+                AWAITING INPUT PARAMETERS. SELECT TARGET AND HEAT LEVELS TO COMMENCE.
               </p>
             </div>
           )}
 
-          {/* History */}
-          {history.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-[10px] font-bold uppercase text-gray-600 mb-4 tracking-[0.2em] px-2 border-l-2 border-orange-500/30 ml-1">Previous Burns</h3>
-              <div className="space-y-3">
-                {history.slice(1).map((h) => (
-                  <div key={h.id} className="glass-panel p-4 rounded-2xl flex items-center gap-4 group cursor-pointer hover:bg-white/5 transition-all border-white/5">
-                    {h.caricatureUrl && (
-                      <img src={h.caricatureUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="History thum" />
-                    )}
-                    <div className="flex-1 truncate">
-                      <p className="text-sm font-medium text-gray-400 truncate">"{h.text}"</p>
-                      <p className="text-[9px] text-gray-600 mt-1 uppercase font-mono">{h.settings.targetName} | {h.settings.style}</p>
+          {/* Incident Log */}
+          {history.length > 1 && (
+            <div className="space-y-8 pt-12 border-t border-white/5">
+              <h3 className="text-[9px] font-black uppercase text-gray-700 tracking-[0.5em] px-2 text-center">INCIDENT LOG</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                {history.slice(1, 5).map((h) => (
+                  <button 
+                    key={h.id} 
+                    onClick={() => setCurrentRoast(h)}
+                    className="flex flex-col gap-3 glass-panel p-4 rounded-[2rem] hover:bg-white/10 transition-all group border-white/5"
+                  >
+                    <div className="aspect-square w-full rounded-[1.2rem] bg-black/40 overflow-hidden border border-white/5">
+                      {h.caricatureUrl ? <img src={h.caricatureUrl} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" /> : <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-800 font-bold">LOG</div>}
                     </div>
-                  </div>
+                    <p className="text-[9px] font-black uppercase truncate text-gray-700 group-hover:text-white transition-colors">{h.settings.targetName}</p>
+                  </button>
                 ))}
               </div>
             </div>
@@ -267,9 +314,36 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      <footer className="mt-20 text-center text-gray-700 text-[9px] uppercase tracking-[0.3em] pb-10">
-        <p>© {new Date().getFullYear()} BURNMASTER PRO • NO LIMITS</p>
+      <footer className="mt-40 mb-20 flex flex-col items-center gap-10 px-10 relative z-10">
+        <div className="relative group">
+          <div className="absolute inset-0 bg-orange-600/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+          <div className="relative glass-panel px-10 py-5 rounded-full border border-white/10 flex items-center gap-6 shadow-2xl">
+             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center font-bangers text-xl shadow-inner">B</div>
+             <div className="text-left border-l border-white/10 pl-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/90 mb-1">BURNMASTER PRO v5.3</p>
+                <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-white/30">© {new Date().getFullYear()} GLOBAL DAMAGE LABS INC.</p>
+             </div>
+          </div>
+        </div>
       </footer>
+
+      <style>{`
+        @keyframes burnIn {
+          0% { opacity: 0; transform: translateY(40px) scale(0.99); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        body {
+          scrollbar-width: none;
+          background: #050505;
+          -webkit-font-smoothing: antialiased;
+        }
+        body::-webkit-scrollbar {
+          display: none;
+        }
+        main {
+           perspective: 1500px;
+        }
+      `}</style>
     </div>
   );
 };
