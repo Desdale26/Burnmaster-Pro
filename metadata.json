@@ -1,0 +1,7 @@
+{
+  "name": "BurnMaster Pro",
+  "description": "A sophisticated insult generator that crafts personalized, witty roasts using AI. Customize the heat level, style, and focus to deliver the perfect comeback.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
