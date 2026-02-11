@@ -25,6 +25,7 @@ export const generateRoast = async (settings: RoastSettings): Promise<GeneratedR
     - High Savage: Be brutal and soul-crushing.
     - High Witty: Use complex metaphors, sharp wordplay, and devastating logic.
     - High Absurdity: Use surreal, nonsensical, and bizarre comparisons.
+    - Style Context: If Shakespearean, use old English barbs. If Gen Z, use heavy brainrot/slang.
     - NO HATE SPEECH OR DISCRIMINATION.
     - The output MUST be valid JSON.
   `;
@@ -61,18 +62,25 @@ export const generateRoast = async (settings: RoastSettings): Promise<GeneratedR
   const data = JSON.parse(rawText);
   let caricatureUrl: string | undefined = undefined;
 
-  // 2. Generate Caricature
+  // 2. Generate Caricature - UPDATED TO BE MEANER
   if (image) {
     try {
       const isExtreme = savageLevel > 75;
       const isChaos = absurdityLevel > 75;
-      const mood = isExtreme ? "GRIM and AGGRESSIVE" : isChaos ? "SURREAL and PSYCHEDELIC" : "SATIRICAL and FUNNY";
       
+      // Much more aggressive prompt for "mean" results
       const imagePrompt = `
-        Create a ${mood} digital caricature illustration based on the person in this photo.
-        Focus specifically on: ${focus}.
-        STYLE: Satirical editorial illustration. Exaggerate physical features massively. 
-        Dark sharp lines, gritty textures for savage, neon weirdness for chaos.
+        Create a HIDEOUS, GROTESQUE, and EXTREMELY UNFLATTERING digital caricature illustration based on the person in this photo.
+        Focus specifically on mocking their: ${focus}.
+        
+        STYLE: Brutal satirical editorial illustration. 
+        MANDATORY RULES:
+        - Massively exaggerate all facial flaws, asymmetrical features, and awkward expressions.
+        - DO NOT make them look cool, heroic, or attractive. 
+        - Make the subject look like a total disaster.
+        - Use gritty, unpleasant textures and harsh, unforgiving lighting.
+        - If Savage Level is high (${savageLevel}), make it soul-crushingly ugly.
+        - If Absurdity Level is high (${absurdityLevel}), make it surreal and mutated.
       `;
 
       const imageResponse = await ai.models.generateContent({
